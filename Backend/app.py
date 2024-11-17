@@ -10,27 +10,30 @@ from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+CORS(app)
 
 # Absolute path to model file
 model_path = "fake_news_model.pkl"
 
 # Check if the model file exists
 if os.path.exists(model_path):
-    model = joblib.load(model_path)
-    print("Model loaded successfully.")
+    try:
+        model = joblib.load(model_path)
+        print("Model loaded successfully.")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load model: {str(e)}")
 else:
     raise FileNotFoundError(f"Model file not found. Please check the path: {model_path}")
 
 # Download stopwords if not already downloaded
 nltk.download('stopwords', quiet=True)
-stop_words = stopwords.words('english')
+stop_words = set(stopwords.words('english'))
 porter_stemmer = PorterStemmer()
 
 # Define the function to preprocess the input text
 def preprocess_text(text):
     # Remove non-alphabet characters
-    text = re.sub('[^a-zA-Z]', ' ', text)
+    text = re.sub(r'[^a-zA-Z]', ' ', text)
     # Convert to lowercase and split
     words = text.lower().split()
     # Apply stemming and remove stopwords
@@ -44,7 +47,7 @@ def predict():
     # Get data from request
     data = request.get_json()
     
-    # Check if data is None or doesn't contain 'text'
+    # Validate the input
     if not data or 'text' not in data:
         return jsonify({'error': 'Invalid input, expected JSON with a "text" field'}), 400
     
@@ -53,13 +56,17 @@ def predict():
     # Preprocess the input text
     preprocessed_text = preprocess_text(input_text)
     
-    # Make prediction
-    prediction = model.predict([preprocessed_text])
+    try:
+        # Make prediction
+        prediction = model.predict([preprocessed_text])
 
-    # Prepare and send response
-    result = 'real' if prediction[0] == 1 else 'fake'
-    return jsonify({'prediction': result})
+        # Prepare and send response
+        result = 'real' if prediction[0] == 1 else 'fake'
+        return jsonify({'prediction': result})
+    except Exception as e:
+        return jsonify({'error': f"Prediction failed: {str(e)}"}), 500
 
-# Entry point for gunicorn
+# Entry point for Render deployment
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))  # Default Render port is 5000
+    app.run(host='0.0.0.0', port=port, debug=True)
