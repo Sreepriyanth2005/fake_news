@@ -15,7 +15,7 @@ CORS(app)
 # Absolute path to model file
 model_path = "fake_news_model.pkl"
 
-# Check if the model file exists
+# Check if the model file exists and load the model
 if os.path.exists(model_path):
     try:
         model = joblib.load(model_path)
@@ -52,6 +52,9 @@ def predict():
         return jsonify({'error': 'Invalid input, expected JSON with a "text" field'}), 400
     
     input_text = data.get('text', '')
+
+    if not input_text.strip():
+        return jsonify({'error': 'Empty text provided'}), 400
 
     # Preprocess the input text
     preprocessed_text = preprocess_text(input_text)

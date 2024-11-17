@@ -16,7 +16,7 @@ function App() {
     setPrediction(null);
 
     try {
-      const response = await axios.post('http://127.0.0.1:5000/predict', { text });
+      const response = await axios.post('https://fake-news-lfap.onrender.com/predict', { text });
       setPrediction(response.data.prediction);
     } catch (error) {
       console.error("Error connecting to the prediction API:", error);
