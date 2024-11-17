@@ -12,64 +12,70 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Absolute path to model file
+# Path to model file
 model_path = "fake_news_model.pkl"
 
 # Check if the model file exists and load the model
-if os.path.exists(model_path):
-    try:
-        model = joblib.load(model_path)
-        print("Model loaded successfully.")
-    except Exception as e:
-        raise RuntimeError(f"Failed to load model: {str(e)}")
-else:
-    raise FileNotFoundError(f"Model file not found. Please check the path: {model_path}")
+try:
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found. Please check the path: {model_path}")
+    
+    model = joblib.load(model_path)
+    print("Model loaded successfully.")
+except Exception as e:
+    raise RuntimeError(f"Failed to load model: {str(e)}")
 
-# Download stopwords if not already downloaded
+# Download NLTK stopwords if not already downloaded
 nltk.download('stopwords', quiet=True)
 stop_words = set(stopwords.words('english'))
 porter_stemmer = PorterStemmer()
 
-# Define the function to preprocess the input text
+# Preprocessing function
 def preprocess_text(text):
-    # Remove non-alphabet characters
+    """
+    Preprocess the input text by removing non-alphabet characters,
+    converting to lowercase, removing stopwords, and applying stemming.
+    """
+    # Remove non-alphabetic characters
     text = re.sub(r'[^a-zA-Z]', ' ', text)
-    # Convert to lowercase and split
+    # Convert to lowercase and split into words
     words = text.lower().split()
-    # Apply stemming and remove stopwords
+    # Remove stopwords and apply stemming
     stemmed_words = [porter_stemmer.stem(word) for word in words if word not in stop_words]
-    # Join words back to form a single string
+    # Join the processed words back into a single string
     return ' '.join(stemmed_words)
 
 # Define the predict route
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Get data from request
+    """
+    Handle POST requests for text prediction.
+    The input is expected to be JSON with a 'text' field.
+    """
+    # Parse JSON input
     data = request.get_json()
-    
-    # Validate the input
     if not data or 'text' not in data:
         return jsonify({'error': 'Invalid input, expected JSON with a "text" field'}), 400
-    
-    input_text = data.get('text', '')
 
-    if not input_text.strip():
+    input_text = data.get('text', '').strip()
+    if not input_text:
         return jsonify({'error': 'Empty text provided'}), 400
 
     # Preprocess the input text
     preprocessed_text = preprocess_text(input_text)
-    
-    try:
-        # Make prediction
-        prediction = model.predict([preprocessed_text])
 
-        # Prepare and send response
-        result = 'real' if prediction[0] == 1 else 'fake'
+    try:
+        # Predict using the loaded model
+        prediction = model.predict([preprocessed_text])[0]
+
+        # Map prediction result to human-readable format
+        result = 'real' if prediction == 1 else 'fake'
         return jsonify({'prediction': result})
     except Exception as e:
+        # Handle prediction errors gracefully
         return jsonify({'error': f"Prediction failed: {str(e)}"}), 500
 
-# Entry point for Render deployment
+# Entry point for the app (suitable for Render or local deployment)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))  # Default Render port is 5000
     app.run(host='0.0.0.0', port=port, debug=True)
