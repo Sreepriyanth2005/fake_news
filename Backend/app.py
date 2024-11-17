@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Path to model file
-model_path = "fake_news_model.pkl"
+model_path = "logistic_regression_model.pkl"
 
 # Check if the model file exists and load the model
 try:
