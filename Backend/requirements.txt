@@ -256,7 +256,6 @@ pyttsx3==2.91
 
 pytz==2024.2
 
-pywin32==306
 
 pywinpty==2.0.13
 
